@@ -1,0 +1,21 @@
+{
+  "name": "pw-mcp",
+  "version": "0.1.0",
+  "description": "Playwright MCPを活用したE2Eテストプラットフォーム",
+  "main": "src/index.js",
+  "bin": {
+    "pw-mcp": "./src/cli/index.js"
+  },
+  "scripts": {
+    "start": "node src/cli/index.js",
+    "test": "npx playwright test",
+    "example": "node src/cli/index.js generate-example",
+    "run-example": "node src/cli/index.js run tests/examples/login-test.json",
+    "pw-test": "node src/cli/index.js pw-test tests/sample-test.js"
+  },
+  "dependencies": {
+    "@playwright/mcp": "^0.0.3",
+    "@playwright/test": "^1.40.0",
+    "commander": "^11.1.0"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "基本ログインテスト",
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "https://demo.playwright.dev/todomvc"
+    },
+    {
+      "action": "wait",
+      "seconds": 2,
+      "description": "ページが表示されるのを待つ"
+    },
+    {
+      "action": "type",
+      "element": "input.new-todo",
+      "text": "テストアイテム1を作成",
+      "submit": true,
+      "description": "最初のTODOアイテムを入力"
+    },
+    {
+      "action": "type",
+      "element": "input.new-todo",
+      "text": "テストアイテム2を作成",
+      "submit": true,
+      "description": "2つ目のTODOアイテムを入力"
+    },
+    {
+      "action": "assertion",
+      "element": ".todo-list li",
+      "expect": "count",
+      "value": 2,
+      "description": "2つのアイテムが追加されたことを確認"
+    },
+    {
+      "action": "click",
+      "element": ".todo-list li:first-child .toggle",
+      "description": "最初のアイテムを完了としてマーク"
+    },
+    {
+      "action": "assertion",
+      "element": ".todo-list li.completed",
+      "expect": "count",
+      "value": 1,
+      "description": "1つのアイテムが完了としてマークされていることを確認"
+    }
+  ],
+  "config": {
+    "browser": "chromium",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "timeout": 30000
+  }
+}

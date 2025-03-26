@@ -1,0 +1,42 @@
+# package
+node_modules
+
+# env
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# temp
+temp
+*.temp
+*.temp.*
+
+# cache
+.cache
+*.cache
+
+# dist
+dist
+*.dist
+*.dist.*
+
+# playwright
+playwright-report
+.zip
+tests/test_*.spec.js
+test-results
+
+# spec
+directorystructure.md
+technologystack.md
+docs/
+
+# cursor
+.cursor/
