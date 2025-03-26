@@ -1,7 +1,7 @@
 {
   "name": "pw-mcp",
   "version": "0.1.0",
-  "description": "Playwright MCPを活用したE2Eテストプラットフォーム",
+  "description": "Playwright MCPを活用したE2Eテストツール",
   "main": "src/index.js",
   "bin": {
     "pw-mcp": "./src/cli/index.js"
@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "@playwright/mcp": "^0.0.3",
-    "@playwright/test": "^1.40.0",
     "commander": "^11.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
   }
 }

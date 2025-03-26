@@ -1,21 +1,38 @@
-const { test } = require('@playwright/mcp');
+/**
+ * Playwright MCPを使用するためのヘルパー関数
+ * @param {Object} page - Playwrightのページオブジェクト
+ * @param {string} task - MCPに実行させるタスク
+ * @param {Object} options - MCPのオプション
+ * @returns {Promise<string>} - MCPの実行結果
+ */
+async function runMcp(page, task, options = {}) {
+  try {
+    // MCPが利用可能か確認
+    if (!page.mcp) {
+      throw new Error('Playwright MCPが初期化されていません。@playwright/mcpをインポートして初期化してください。');
+    }
+    
+    // デフォルトオプション
+    const defaultOptions = {
+      model: 'gpt-4o',
+      temperature: 0.7,
+      timeoutMs: 60000
+    };
+    
+    // オプションをマージ
+    const mergedOptions = { ...defaultOptions, ...options };
+    
+    // MCPを実行
+    console.log(`MCPタスクを実行: ${task}`);
+    const result = await page.mcp.run(task, mergedOptions);
+    
+    return result;
+  } catch (error) {
+    console.error('MCP実行中にエラーが発生しました:', error);
+    throw error;
+  }
+}
 
-// 基本的なテストシナリオを実行
-test('TodoMVCで基本テスト', async ({ page }) => {
-  // TodoMVCに移動
-  await page.goto('https://demo.playwright.dev/todomvc');
-  
-  // テキストフィールドを探してTODOを追加
-  await page.getByPlaceholder('What needs to be done?').fill('テストタスク1');
-  await page.keyboard.press('Enter');
-  
-  // もう1つTODOを追加
-  await page.getByPlaceholder('What needs to be done?').fill('テストタスク2');
-  await page.keyboard.press('Enter');
-  
-  // 最初のTODOを完了としてマーク
-  await page.locator('.todo-list li').first().getByRole('checkbox').check();
-  
-  // 完了済みのTODOが1つあることを確認
-  await page.locator('.todo-list li.completed').assertCount(1);
-}); 
+module.exports = {
+  runMcp
+}; 

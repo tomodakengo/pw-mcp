@@ -53,13 +53,25 @@ class TestRunner {
         mcpArgs.push('--reporter=null');
       }
       
+      // ブラウザプロジェクトを明示的に指定
+      if (test.config && test.config.browser) {
+        const projectArg = `--project=${test.config.browser}`;
+        if (!mcpArgs.some(arg => arg.startsWith('--project='))) {
+          mcpArgs.push(projectArg);
+        }
+      } else {
+        // デフォルトのプロジェクトを指定
+        if (!mcpArgs.some(arg => arg.startsWith('--project='))) {
+          mcpArgs.push('--project=chromium');
+        }
+      }
+      
       // MCPを使用してテストを実行
       const result = await this._runPlaywrightTest(mcpArgs);
       
       // テスト失敗時にレポートを表示（オプションが有効な場合）
       if (result.exitCode !== 0 && this.showReport) {
         console.log('テストレポートを表示します...');
-        const { spawn } = require('child_process');
         const reportProcess = spawn(
           this.mcpConfig.command, 
           ['playwright', 'show-report'], 
@@ -161,7 +173,6 @@ class TestRunner {
       return;
     }
     
-    const fs = require('fs');
     for (const file of this.testFiles) {
       if (fs.existsSync(file)) {
         fs.unlinkSync(file);

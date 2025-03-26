@@ -3,7 +3,7 @@
 const { program } = require('commander');
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawnSync, spawn } = require('child_process');
 const TestRunner = require('../core/TestRunner');
 
 // バージョン情報を取得
@@ -90,7 +90,7 @@ async function generateJsTestFromDefinition(testDefinition) {
   let testCode = `
 const { test, expect } = require('@playwright/test');
 
-test('${testDefinition.name}', async ({ page }) => {
+test('${testDefinition.name || "Todoアプリのテスト"}', async ({ page }) => {
 `;
 
   // ステップを変換

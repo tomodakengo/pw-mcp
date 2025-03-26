@@ -39,5 +39,5 @@ module.exports = defineConfig({
         browserName: 'webkit',
       },
     },
-  ],
+  ]
 }); 

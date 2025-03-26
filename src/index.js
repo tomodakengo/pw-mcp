@@ -5,7 +5,8 @@
 
 const TestRunner = require('./core/TestRunner');
 
-// エクスポート
+// テストMCP関連の処理をエクスポート
 module.exports = {
+  testMcp: require('./test-mcp.js'),
   TestRunner
 }; 
