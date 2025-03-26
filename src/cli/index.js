@@ -87,7 +87,7 @@ async function generateJsTestFromDefinition(testDefinition) {
   }
   
   const testFileName = path.join(testDir, `test_${Date.now()}.spec.js`);
-  let testCode = `
+  let testCode = `// Generated test for ${testDefinition.name || "Todoアプリのテスト"}
 const { test, expect } = require('@playwright/test');
 
 test('${testDefinition.name || "Todoアプリのテスト"}', async ({ page }) => {

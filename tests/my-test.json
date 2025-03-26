@@ -1,0 +1,49 @@
+{
+  "name": "Todoアプリテスト",
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "https://demo.playwright.dev/todomvc"
+    },
+    {
+      "action": "wait",
+      "seconds": 2,
+      "description": "ページが読み込まれるのを待つ"
+    },
+    {
+      "action": "type",
+      "element": "input.new-todo",
+      "text": "テストタスク1",
+      "submit": true,
+      "description": "最初のTODOを入力"
+    },
+    {
+      "action": "assertion",
+      "element": ".todo-list li",
+      "expect": "count",
+      "value": 1,
+      "description": "1つのTODOアイテムが追加されたことを確認"
+    },
+    {
+      "action": "type",
+      "element": "input.new-todo",
+      "text": "テストタスク2",
+      "submit": true,
+      "description": "2つ目のTODOを入力"
+    },
+    {
+      "action": "assertion",
+      "element": ".todo-list li",
+      "expect": "count",
+      "value": 2,
+      "description": "2つのTODOアイテムが追加されたことを確認"
+    }
+  ],
+  "config": {
+    "browser": "chromium",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  }
+}
