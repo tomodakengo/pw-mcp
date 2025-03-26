@@ -30,7 +30,7 @@ dist
 # playwright
 playwright-report
 .zip
-tests/test_*.spec.js
+tests/*test_*.spec.js
 test-results
 
 # spec
