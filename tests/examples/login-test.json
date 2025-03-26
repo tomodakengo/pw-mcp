@@ -1,5 +1,5 @@
 {
-  "name": "基本ログインテスト",
+  "name": "Todoアプリのテスト",
   "steps": [
     {
       "action": "navigate",
