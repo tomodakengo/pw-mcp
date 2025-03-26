@@ -14,7 +14,10 @@
     "example": "node dist/cli/index.js generate-example",
     "run-example": "node dist/cli/index.js run tests/examples/login-test.json",
     "pw-test": "node dist/cli/index.js pw-test tests/sample-test.js",
-    "mcp-test": "node dist/cli/index.js mcp tests/my-test.json"
+    "mcp-test": "node dist/cli/index.js mcp tests/my-test.json",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "@playwright/mcp": "latest",
@@ -23,6 +26,12 @@
   "devDependencies": {
     "@playwright/test": "^1.40.0",
     "@types/node": "^20.17.27",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "eslint": "^9.23.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.5",
+    "prettier": "^3.5.3",
     "typescript": "^5.0.0"
   }
 }

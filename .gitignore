@@ -40,3 +40,7 @@ docs/
 
 # cursor
 .cursor/
+
+# eslint
+.eslintcache
+.eslintrc.local
