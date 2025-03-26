@@ -9,6 +9,7 @@ import TestRunner from '../core/TestRunner';
 interface TestDefinition {
   name: string;
   steps: TestStep[];
+  config?: TestConfig;
 }
 
 interface TestStep {
@@ -21,6 +22,33 @@ interface TestStep {
   submit?: boolean;
   expect?: string;
   value?: number | string;
+  timeout?: number;
+  retries?: number;
+}
+
+interface TestConfig {
+  browser?: string;
+  timeout?: number;
+  retries?: number;
+  skip?: boolean;
+  tags?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+}
+
+interface CliOptions {
+  browser?: string;
+  headless?: boolean;
+  headed?: boolean;
+  timeout?: string;
+  model?: string;
+  keepFiles?: boolean;
+  report?: boolean;
+  retryCount?: number;
+  retryDelay?: number;
+  debug?: boolean;
+  env?: string;
+  cwd?: string;
 }
 
 // バージョン情報を取得
@@ -44,7 +72,12 @@ program
   .option('--model <model>', 'MCPで使用するAIモデル', 'gpt-4o')
   .option('--keep-files', 'テスト完了後もspec.jsファイルを保持する', false)
   .option('--no-report', 'テスト失敗時にレポートを自動表示しない', false)
-  .action(async (file: string, options: any) => {
+  .option('--retry-count <count>', 'テスト失敗時のリトライ回数', '3')
+  .option('--retry-delay <ms>', 'リトライ間隔（ミリ秒）', '1000')
+  .option('--debug', 'デバッグモードを有効化', false)
+  .option('--env <env>', '環境変数を設定（key=value形式）')
+  .option('--cwd <path>', '作業ディレクトリを指定')
+  .action(async (file: string, options: CliOptions) => {
     try {
       console.log('テスト実行を開始します...');
       console.log(`ファイル: ${file}`);
@@ -63,6 +96,15 @@ program
       
       console.log(`テストファイルを生成しました: ${jsTestFile}`);
       
+      // 環境変数を解析
+      const env: Record<string, string> = {};
+      if (options.env) {
+        const envParts = options.env.split('=');
+        if (envParts.length === 2) {
+          env[envParts[0]] = envParts[1];
+        }
+      }
+      
       // テストランナーを設定
       const testRunner = new TestRunner({
         mcpConfig: {
@@ -72,10 +114,16 @@ program
             'test',
             jsTestFile.replace(/\\/g, '/'),
             options.headed ? '--headed' : ''
-          ].filter(Boolean)
+          ].filter(Boolean),
+          env,
+          cwd: options.cwd
         },
         keepFiles: options.keepFiles,
-        showReport: options.report
+        showReport: options.report,
+        retryCount: parseInt(options.retryCount || '3', 10),
+        retryDelay: parseInt(options.retryDelay || '1000', 10),
+        timeout: parseInt(options.timeout || '30000', 10),
+        debug: options.debug
       });
       
       // テストを実行
@@ -84,6 +132,12 @@ program
       // テスト結果を表示
       console.log('\nテスト実行結果:');
       console.log(`ステータス: ${result.status}`);
+      if (result.duration) {
+        console.log(`実行時間: ${result.duration}ms`);
+      }
+      if (result.retries) {
+        console.log(`リトライ回数: ${result.retries}`);
+      }
       
       // テストファイルをクリーンアップ
       await testRunner.cleanup();

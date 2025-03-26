@@ -4,13 +4,25 @@ interface McpOptions {
   model?: string;
   temperature?: number;
   timeoutMs?: number;
+  maxRetries?: number;
+  retryDelay?: number;
+  debug?: boolean;
   [key: string]: any;
 }
 
 interface McpPage extends Page {
   mcp?: {
     run: (task: string, options: McpOptions) => Promise<string>;
+    init?: () => Promise<void>;
+    cleanup?: () => Promise<void>;
   };
+}
+
+interface McpResult {
+  success: boolean;
+  message: string;
+  error?: string;
+  retries?: number;
 }
 
 /**
@@ -20,7 +32,7 @@ interface McpPage extends Page {
  * @param options - MCPのオプション
  * @returns - MCPの実行結果
  */
-export async function runMcp(page: McpPage, task: string, options: McpOptions = {}): Promise<string> {
+export async function runMcp(page: McpPage, task: string, options: McpOptions = {}): Promise<McpResult> {
   try {
     // MCPが利用可能か確認
     if (!page.mcp) {
@@ -33,7 +45,10 @@ export async function runMcp(page: McpPage, task: string, options: McpOptions = 
     const defaultOptions: McpOptions = {
       model: 'gpt-4o',
       temperature: 0.7,
-      timeoutMs: 60000
+      timeoutMs: 60000,
+      maxRetries: 3,
+      retryDelay: 1000,
+      debug: false
     };
     
     // オプションをマージ
@@ -45,7 +60,10 @@ export async function runMcp(page: McpPage, task: string, options: McpOptions = 
     try {
       if (page.mcp && page.mcp.run) {
         const result = await page.mcp.run(task, mergedOptions);
-        return result;
+        return {
+          success: true,
+          message: result
+        };
       } else {
         // フォールバック処理を実行
         return await executeNativeAction(page, task);
@@ -67,7 +85,7 @@ export async function runMcp(page: McpPage, task: string, options: McpOptions = 
  * @param task - 実行するタスクの説明
  * @returns - 操作結果
  */
-async function executeNativeAction(page: Page, task: string): Promise<string> {
+async function executeNativeAction(page: Page, task: string): Promise<McpResult> {
   console.log(`ネイティブアクションにフォールバック: ${task}`);
   
   try {
@@ -77,7 +95,10 @@ async function executeNativeAction(page: Page, task: string): Promise<string> {
       if (elementMatch && elementMatch[1]) {
         const selector = elementMatch[1];
         await page.click(selector);
-        return `要素 "${selector}" をクリックしました`;
+        return {
+          success: true,
+          message: `要素 "${selector}" をクリックしました`
+        };
       }
     }
     
@@ -92,10 +113,16 @@ async function executeNativeAction(page: Page, task: string): Promise<string> {
         // Enterキーを押す
         if (task.includes('そしてEnterキーを押す') || task.includes('Enterを押す')) {
           await page.press(selector, 'Enter');
-          return `要素 "${selector}" に "${text}" を入力し、Enterを押しました`;
+          return {
+            success: true,
+            message: `要素 "${selector}" に "${text}" を入力し、Enterを押しました`
+          };
         }
         
-        return `要素 "${selector}" に "${text}" を入力しました`;
+        return {
+          success: true,
+          message: `要素 "${selector}" に "${text}" を入力しました`
+        };
       }
     }
     
@@ -111,9 +138,15 @@ async function executeNativeAction(page: Page, task: string): Promise<string> {
         
         const actualCount = await page.locator(selector).count();
         if (actualCount === count) {
-          return `要素 "${selector}" が ${count} 個存在することを確認しました`;
+          return {
+            success: true,
+            message: `要素 "${selector}" が ${count} 個存在することを確認しました`
+          };
         } else {
-          return `要素 "${selector}" は ${actualCount} 個存在します (期待値: ${count})`;
+          return {
+            success: false,
+            message: `要素 "${selector}" は ${actualCount} 個存在します (期待値: ${count})`
+          };
         }
       }
     }
@@ -124,7 +157,10 @@ async function executeNativeAction(page: Page, task: string): Promise<string> {
       if (elementMatch && elementMatch[1]) {
         const selector = elementMatch[1];
         await page.waitForSelector(selector, { state: 'visible', timeout: 5000 });
-        return `要素 "${selector}" が表示されていることを確認しました`;
+        return {
+          success: true,
+          message: `要素 "${selector}" が表示されていることを確認しました`
+        };
       }
     }
     
@@ -137,18 +173,31 @@ async function executeNativeAction(page: Page, task: string): Promise<string> {
         
         const actualText = await page.locator(selector).textContent();
         if (actualText && actualText.includes(expectedText)) {
-          return `要素 "${selector}" のテキストが "${expectedText}" であることを確認しました`;
+          return {
+            success: true,
+            message: `要素 "${selector}" のテキストが "${expectedText}" であることを確認しました`
+          };
         } else {
-          return `要素 "${selector}" のテキストは "${actualText}" です (期待値: "${expectedText}")`;
+          return {
+            success: false,
+            message: `要素 "${selector}" のテキストは "${actualText}" です (期待値: "${expectedText}")`
+          };
         }
       }
     }
     
     // 未対応のタスク
-    return `タスク「${task}」はネイティブアクションではサポートされていません`;
+    return {
+      success: false,
+      message: `タスク「${task}」はネイティブアクションではサポートされていません`
+    };
   } catch (error: any) {
     console.error('ネイティブアクション実行中にエラーが発生しました:', error);
-    return `ネイティブアクションでエラーが発生しました: ${error.message}`;
+    return {
+      success: false,
+      message: `ネイティブアクションでエラーが発生しました: ${error.message}`,
+      error: error.message
+    };
   }
 }
 

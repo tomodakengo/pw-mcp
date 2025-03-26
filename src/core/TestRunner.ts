@@ -5,33 +5,68 @@ import fs from 'fs';
 interface McpConfig {
   command: string;
   args: string[];
+  env?: NodeJS.ProcessEnv;
+  cwd?: string;
 }
 
 interface TestRunnerOptions {
   mcpConfig?: McpConfig;
   keepFiles?: boolean;
   showReport?: boolean;
+  retryCount?: number;
+  retryDelay?: number;
+  timeout?: number;
+  debug?: boolean;
 }
 
 interface TestResult {
   name: string;
-  status: 'passed' | 'failed' | 'error';
+  status: 'passed' | 'failed' | 'error' | 'skipped';
   output?: string;
   error?: string;
+  duration?: number;
+  retries?: number;
+  timestamp?: string;
 }
 
 interface TestConfig {
   browser?: string;
+  timeout?: number;
+  retries?: number;
+  skip?: boolean;
+  tags?: string[];
 }
 
 interface Test {
   name: string;
   config?: TestConfig;
+  steps?: TestStep[];
+}
+
+interface TestStep {
+  name: string;
+  status: 'passed' | 'failed' | 'error' | 'skipped';
+  duration?: number;
+  error?: string;
 }
 
 interface TestExecutionResult {
   exitCode: number;
   output: string;
+  duration?: number;
+  retries?: number;
+}
+
+interface TestSummary {
+  total: number;
+  passed: number;
+  failed: number;
+  errors: number;
+  skipped: number;
+  success: number;
+  duration: number;
+  startTime: string;
+  endTime: string;
 }
 
 /**
@@ -43,6 +78,11 @@ class TestRunner {
   private showReport: boolean;
   private testResults: TestResult[];
   private testFiles: string[];
+  private retryCount: number;
+  private retryDelay: number;
+  private timeout: number;
+  private debug: boolean;
+  private startTime: Date;
 
   /**
    * TestRunnerを初期化
@@ -55,8 +95,13 @@ class TestRunner {
     };
     this.keepFiles = options.keepFiles || false;
     this.showReport = options.showReport !== false; // デフォルトはtrue
+    this.retryCount = options.retryCount || 3;
+    this.retryDelay = options.retryDelay || 1000;
+    this.timeout = options.timeout || 30000;
+    this.debug = options.debug || false;
     this.testResults = [];
     this.testFiles = []; // 生成したテストファイルを追跡
+    this.startTime = new Date();
   }
 
   /**
@@ -73,6 +118,15 @@ class TestRunner {
     }
     
     try {
+      // スキップ設定の確認
+      if (test.config?.skip) {
+        return {
+          name: test.name,
+          status: 'skipped',
+          timestamp: new Date().toISOString()
+        };
+      }
+      
       // 引数にレポーター設定を追加（必要な場合）
       const mcpArgs = [...this.mcpConfig.args];
       
@@ -99,6 +153,13 @@ class TestRunner {
         }
       }
       
+      // タイムアウト設定
+      if (test.config?.timeout) {
+        mcpArgs.push(`--timeout=${test.config.timeout}`);
+      } else {
+        mcpArgs.push(`--timeout=${this.timeout}`);
+      }
+      
       // MCPを使用してテストを実行
       const result = await this._runPlaywrightTest(mcpArgs);
       
@@ -117,22 +178,29 @@ class TestRunner {
       }
       
       // 結果を保存
-      this.testResults.push({
+      const testResult: TestResult = {
         name: test.name,
         status: result.exitCode === 0 ? 'passed' : 'failed',
-        output: result.output
-      });
+        output: result.output,
+        duration: result.duration,
+        retries: result.retries,
+        timestamp: new Date().toISOString()
+      };
+      
+      this.testResults.push(testResult);
       
       console.log(`テスト「${test.name}」が完了しました`);
-      return this.testResults[this.testResults.length - 1];
+      return testResult;
     } catch (error: any) {
       console.error(`テスト「${test.name}」の実行中にエラーが発生しました:`, error);
-      this.testResults.push({
+      const errorResult: TestResult = {
         name: test.name,
         status: 'error',
-        error: error.message
-      });
-      return this.testResults[this.testResults.length - 1];
+        error: error.message,
+        timestamp: new Date().toISOString()
+      };
+      this.testResults.push(errorResult);
+      return errorResult;
     }
   }
 
@@ -144,31 +212,42 @@ class TestRunner {
    */
   private _runPlaywrightTest(args: string[] = []): Promise<TestExecutionResult> {
     return new Promise((resolve, reject) => {
-      const { command, args: baseArgs } = this.mcpConfig;
+      const { command, args: baseArgs, env, cwd } = this.mcpConfig;
       const mergedArgs = [...baseArgs, ...args];
       console.log(`実行コマンド: ${command} ${mergedArgs.join(' ')}`);
       
       // Playwrightテスト実行
       const testProcess = spawn(command, mergedArgs, {
-        shell: process.platform === 'win32'
+        shell: process.platform === 'win32',
+        env: { ...process.env, ...env },
+        cwd: cwd || process.cwd()
       });
       
       let outputData = '';
+      const startTime = Date.now();
       
       testProcess.stdout?.on('data', (data) => {
         const output = data.toString();
         outputData += output;
-        console.log(output);
+        if (this.debug) {
+          console.log(output);
+        }
       });
       
       testProcess.stderr?.on('data', (data) => {
         const output = data.toString();
         outputData += output;
-        console.error(output);
+        if (this.debug) {
+          console.error(output);
+        }
       });
       
       testProcess.on('close', (exitCode) => {
-        resolve({ exitCode: exitCode || 0, output: outputData });
+        resolve({
+          exitCode: exitCode || 0,
+          output: outputData,
+          duration: Date.now() - startTime
+        });
       });
       
       testProcess.on('error', (error) => {
@@ -181,18 +260,26 @@ class TestRunner {
    * テスト結果のサマリーを取得
    * @returns 結果サマリー
    */
-  getResultsSummary() {
+  getResultsSummary(): TestSummary {
     const total = this.testResults.length;
     const passed = this.testResults.filter(result => result.status === 'passed').length;
     const failed = this.testResults.filter(result => result.status === 'failed').length;
     const errors = this.testResults.filter(result => result.status === 'error').length;
+    const skipped = this.testResults.filter(result => result.status === 'skipped').length;
+    
+    const endTime = new Date();
+    const duration = endTime.getTime() - this.startTime.getTime();
     
     return {
       total,
       passed,
       failed,
       errors,
-      success: total > 0 ? (passed / total) * 100 : 0
+      skipped,
+      success: total > 0 ? (passed / total) * 100 : 0,
+      duration,
+      startTime: this.startTime.toISOString(),
+      endTime: endTime.toISOString()
     };
   }
   
