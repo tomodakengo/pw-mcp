@@ -11,9 +11,11 @@
     "test": "npx playwright test",
     "example": "node src/cli/index.js generate-example",
     "run-example": "node src/cli/index.js run tests/examples/login-test.json",
-    "pw-test": "node src/cli/index.js pw-test tests/sample-test.js"
+    "pw-test": "node src/cli/index.js pw-test tests/sample-test.js",
+    "mcp-test": "node src/cli/index.js mcp tests/my-test.json"
   },
   "dependencies": {
+    "@playwright/mcp": "latest",
     "commander": "^11.1.0"
   },
   "devDependencies": {
