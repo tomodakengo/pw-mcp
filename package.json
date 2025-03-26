@@ -2,6 +2,7 @@
   "name": "pw-mcp",
   "version": "0.1.0",
   "description": "Playwright MCPを活用したE2Eテストプラットフォーム",
+  "type": "module",
   "main": "dist/index.js",
   "bin": {
     "pw-mcp": "./dist/cli/index.js"

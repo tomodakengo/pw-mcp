@@ -82,20 +82,22 @@ program
       console.log('テスト実行を開始します...');
       console.log(`ファイル: ${file}`);
       console.log(`オプション: ${JSON.stringify(options, null, 2)}`);
-      
+
       // テスト定義ファイルを読み込む
       const testDefinitionPath = path.resolve(process.cwd(), file);
       if (!fs.existsSync(testDefinitionPath)) {
         console.error(`エラー: ファイル '${testDefinitionPath}' が存在しません`);
         process.exit(1);
       }
-      
+
       // テスト定義からJavaScriptテストファイルを生成
-      const testDefinition: TestDefinition = JSON.parse(fs.readFileSync(testDefinitionPath, 'utf8'));
+      const testDefinition: TestDefinition = JSON.parse(
+        fs.readFileSync(testDefinitionPath, 'utf8')
+      );
       const jsTestFile = await generateJsTestFromDefinition(testDefinition);
-      
+
       console.log(`テストファイルを生成しました: ${jsTestFile}`);
-      
+
       // 環境変数を解析
       const env: Record<string, string> = {};
       if (options.env) {
@@ -104,7 +106,7 @@ program
           env[envParts[0]] = envParts[1];
         }
       }
-      
+
       // テストランナーを設定
       const testRunner = new TestRunner({
         mcpConfig: {
@@ -113,22 +115,22 @@ program
             'playwright',
             'test',
             jsTestFile.replace(/\\/g, '/'),
-            options.headed ? '--headed' : ''
+            options.headed ? '--headed' : '',
           ].filter(Boolean),
           env,
-          cwd: options.cwd
+          cwd: options.cwd,
         },
         keepFiles: options.keepFiles,
         showReport: options.report,
         retryCount: parseInt(options.retryCount || '3', 10),
         retryDelay: parseInt(options.retryDelay || '1000', 10),
         timeout: parseInt(options.timeout || '30000', 10),
-        debug: options.debug
+        debug: options.debug,
       });
-      
+
       // テストを実行
       const result = await testRunner.execute(testDefinition, jsTestFile);
-      
+
       // テスト結果を表示
       console.log('\nテスト実行結果:');
       console.log(`ステータス: ${result.status}`);
@@ -138,10 +140,10 @@ program
       if (result.retries) {
         console.log(`リトライ回数: ${result.retries}`);
       }
-      
+
       // テストファイルをクリーンアップ
       await testRunner.cleanup();
-      
+
       // 終了コードを設定
       process.exit(result.status === 'passed' ? 0 : 1);
     } catch (error) {
@@ -156,12 +158,12 @@ async function generateJsTestFromDefinition(testDefinition: TestDefinition): Pro
   if (!fs.existsSync(testDir)) {
     fs.mkdirSync(testDir, { recursive: true });
   }
-  
+
   const testFileName = path.join(testDir, `test_${Date.now()}.spec.js`);
-  let testCode = `// Generated test for ${testDefinition.name || "Todoアプリのテスト"}
+  let testCode = `// Generated test for ${testDefinition.name || 'Todoアプリのテスト'}
 const { test, expect } = require('@playwright/test');
 
-test('${testDefinition.name || "Todoアプリのテスト"}', async ({ page }) => {
+test('${testDefinition.name || 'Todoアプリのテスト'}', async ({ page }) => {
 `;
 
   // ステップを変換
@@ -171,7 +173,7 @@ test('${testDefinition.name || "Todoアプリのテスト"}', async ({ page }) =
         testCode += `  // ${step.description || 'ページに移動'}\n`;
         testCode += `  await page.goto('${step.url}');\n`;
         break;
-        
+
       case 'wait':
         if (step.seconds) {
           testCode += `  // ${step.description || `${step.seconds}秒待機`}\n`;
@@ -181,7 +183,7 @@ test('${testDefinition.name || "Todoアプリのテスト"}', async ({ page }) =
           testCode += `  await page.waitForSelector('${step.element}');\n`;
         }
         break;
-        
+
       case 'type':
         testCode += `  // ${step.description || 'テキストを入力'}\n`;
         testCode += `  await page.locator('${step.element}').fill('${step.text}');\n`;
@@ -189,12 +191,12 @@ test('${testDefinition.name || "Todoアプリのテスト"}', async ({ page }) =
           testCode += `  await page.keyboard.press('Enter');\n`;
         }
         break;
-        
+
       case 'click':
         testCode += `  // ${step.description || '要素をクリック'}\n`;
         testCode += `  await page.locator('${step.element}').click();\n`;
         break;
-        
+
       case 'assertion':
         testCode += `  // ${step.description || '検証'}\n`;
         if (step.expect === 'count') {
@@ -207,9 +209,9 @@ test('${testDefinition.name || "Todoアプリのテスト"}', async ({ page }) =
         break;
     }
   }
-  
+
   testCode += `});`;
-  
+
   fs.writeFileSync(testFileName, testCode, 'utf8');
   return testFileName;
 }
@@ -226,13 +228,13 @@ program
         { action: 'navigate', url: 'https://example.com/login' },
         { action: 'type', element: 'ユーザー名フィールド', text: 'testuser' },
         { action: 'type', element: 'パスワードフィールド', text: 'password', submit: true },
-        { action: 'assertion', expect: 'ダッシュボード画面が表示される' }
-      ]
+        { action: 'assertion', expect: 'ダッシュボード画面が表示される' },
+      ],
     };
-    
+
     const outputPath = path.resolve(process.cwd(), options.output);
     fs.writeFileSync(outputPath, JSON.stringify(exampleTest, null, 2), 'utf8');
-    
+
     console.log(`サンプルテスト定義を作成しました: ${outputPath}`);
   });
 
@@ -243,23 +245,23 @@ program
   .argument('<file>', 'テストファイルのパス')
   .option('-b, --browser <browser>', 'ブラウザを指定 (chromium, firefox, webkit)', 'chromium')
   .option('--headed', 'ヘッド付きモードで実行（UIあり）', false)
-  .action((file: string, options: { browser: string, headed: boolean }) => {
+  .action((file: string, options: { browser: string; headed: boolean }) => {
     const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
     const args = [
       'playwright',
       'test',
       file,
       `--project=${options.browser}`,
-      options.headed ? '--headed' : ''
+      options.headed ? '--headed' : '',
     ].filter(Boolean);
-    
+
     console.log(`コマンド実行: ${command} ${args.join(' ')}`);
-    
-    const result = spawnSync(command, args, { 
+
+    const result = spawnSync(command, args, {
       stdio: 'inherit',
-      shell: process.platform === 'win32'
+      shell: process.platform === 'win32',
     });
-    
+
     process.exit(result.status || 0);
   });
 
@@ -289,20 +291,22 @@ program
       console.log('MCP（AI）テスト実行を開始します...');
       console.log(`ファイル: ${file}`);
       console.log(`モデル: ${options.model}`);
-      
+
       // テスト定義ファイルを読み込む
       const testDefinitionPath = path.resolve(process.cwd(), file);
       if (!fs.existsSync(testDefinitionPath)) {
         console.error(`エラー: ファイル '${testDefinitionPath}' が存在しません`);
         process.exit(1);
       }
-      
+
       // テスト定義からMCPテストファイルを生成
-      const testDefinition: TestDefinition = JSON.parse(fs.readFileSync(testDefinitionPath, 'utf8'));
+      const testDefinition: TestDefinition = JSON.parse(
+        fs.readFileSync(testDefinitionPath, 'utf8')
+      );
       const mcpTestFile = await generateMcpTestFromDefinition(testDefinition, options.model);
-      
+
       console.log(`MCPテストファイルを生成しました: ${mcpTestFile}`);
-      
+
       // テストランナーを設定
       const testRunner = new TestRunner({
         mcpConfig: {
@@ -312,22 +316,22 @@ program
             'test',
             mcpTestFile.replace(/\\/g, '/'),
             `--project=${options.browser}`,
-            options.headed ? '--headed' : ''
-          ].filter(Boolean)
+            options.headed ? '--headed' : '',
+          ].filter(Boolean),
         },
-        keepFiles: options.keepFiles
+        keepFiles: options.keepFiles,
       });
-      
+
       // テストを実行
       const result = await testRunner.execute(testDefinition, mcpTestFile);
-      
+
       // テスト結果を表示
       console.log('\nMCPテスト実行結果:');
       console.log(`ステータス: ${result.status}`);
-      
+
       // テストファイルをクリーンアップ
       await testRunner.cleanup();
-      
+
       // 終了コードを設定
       process.exit(result.status === 'passed' ? 0 : 1);
     } catch (error) {
@@ -339,32 +343,35 @@ program
 // 1種類のモデルタイプに変換する関数
 function convertModelType(model: string): string {
   const lowercase = model.toLowerCase();
-  
+
   if (lowercase.includes('gpt-4')) return 'gpt-4o';
   if (lowercase.includes('claude') && lowercase.includes('haiku')) return 'claude-3-haiku';
   if (lowercase.includes('claude') && lowercase.includes('sonnet')) return 'claude-3-sonnet';
   if (lowercase.includes('claude') && lowercase.includes('opus')) return 'claude-3-opus';
-  
+
   // デフォルトはGPT-4o
   return 'gpt-4o';
 }
 
 // JSON定義からMCPテストファイルを生成する関数
-async function generateMcpTestFromDefinition(testDefinition: TestDefinition, model = 'gpt-4o'): Promise<string> {
+async function generateMcpTestFromDefinition(
+  testDefinition: TestDefinition,
+  model = 'gpt-4o'
+): Promise<string> {
   const testDir = path.join(process.cwd(), 'tests');
   if (!fs.existsSync(testDir)) {
     fs.mkdirSync(testDir, { recursive: true });
   }
-  
+
   const modelType = convertModelType(model);
   const testFileName = path.join(testDir, `mcp_test_${Date.now()}.spec.js`);
-  
+
   // MCP用のコードを生成
-  let testCode = `// Generated MCP test for ${testDefinition.name || "MCPテスト"}
+  let testCode = `// Generated MCP test for ${testDefinition.name || 'MCPテスト'}
 const { test, expect } = require('@playwright/test');
 const { runMcp } = require('../dist/test-mcp');
 
-test('${testDefinition.name || "MCPテスト"}', async ({ page }) => {
+test('${testDefinition.name || 'MCPテスト'}', async ({ page }) => {
   // MCPを初期化
   // ブラウザページに対してMCP機能を有効化（プレースホルダー）
   
@@ -380,12 +387,12 @@ test('${testDefinition.name || "MCPテスト"}', async ({ page }) => {
   // ステップを変換
   for (const step of testDefinition.steps) {
     testCode += `  // ${step.description || step.action}\n`;
-    
+
     switch (step.action) {
       case 'navigate':
         testCode += `  await page.goto('${step.url}');\n`;
         break;
-        
+
       case 'wait':
         if (step.seconds) {
           testCode += `  await page.waitForTimeout(${step.seconds * 1000});\n`;
@@ -393,15 +400,15 @@ test('${testDefinition.name || "MCPテスト"}', async ({ page }) => {
           testCode += `  await runMcp(page, \`要素 "${step.element}" が表示されるまで待機する\`, mcpOptions);\n`;
         }
         break;
-        
+
       case 'type':
         testCode += `  await runMcp(page, \`要素 "${step.element}" に "${step.text}" と入力する${step.submit ? ' そしてEnterキーを押す' : ''}\`, mcpOptions);\n`;
         break;
-        
+
       case 'click':
         testCode += `  await runMcp(page, \`要素 "${step.element}" をクリックする\`, mcpOptions);\n`;
         break;
-        
+
       case 'assertion':
         if (step.expect === 'count') {
           testCode += `  await runMcp(page, \`要素 "${step.element}" が ${step.value} 個存在することを確認する\`, mcpOptions);\n`;
@@ -413,19 +420,19 @@ test('${testDefinition.name || "MCPテスト"}', async ({ page }) => {
           testCode += `  await runMcp(page, \`${step.description || step.expect}\`, mcpOptions);\n`;
         }
         break;
-        
+
       default:
         testCode += `  await runMcp(page, \`${step.description || JSON.stringify(step)}\`, mcpOptions);\n`;
     }
-    
+
     testCode += '\n';
   }
-  
+
   testCode += `});`;
-  
+
   fs.writeFileSync(testFileName, testCode, 'utf8');
   return testFileName;
 }
 
 // コマンドを解析して実行
-program.parse(); 
+program.parse();
