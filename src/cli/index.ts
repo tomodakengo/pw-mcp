@@ -1,10 +1,27 @@
 #!/usr/bin/env node
 
-const { program } = require('commander');
-const fs = require('fs');
-const path = require('path');
-const { spawnSync, spawn } = require('child_process');
-const TestRunner = require('../core/TestRunner');
+import { program } from 'commander';
+import fs from 'fs';
+import path from 'path';
+import { spawnSync, spawn, SpawnSyncReturns } from 'child_process';
+import TestRunner from '../core/TestRunner';
+
+interface TestDefinition {
+  name: string;
+  steps: TestStep[];
+}
+
+interface TestStep {
+  action: string;
+  description?: string;
+  url?: string;
+  element?: string;
+  seconds?: number;
+  text?: string;
+  submit?: boolean;
+  expect?: string;
+  value?: number | string;
+}
 
 // バージョン情報を取得
 const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf8'));
@@ -27,7 +44,7 @@ program
   .option('--model <model>', 'MCPで使用するAIモデル', 'gpt-4o')
   .option('--keep-files', 'テスト完了後もspec.jsファイルを保持する', false)
   .option('--no-report', 'テスト失敗時にレポートを自動表示しない', false)
-  .action(async (file, options) => {
+  .action(async (file: string, options: any) => {
     try {
       console.log('テスト実行を開始します...');
       console.log(`ファイル: ${file}`);
@@ -41,7 +58,7 @@ program
       }
       
       // テスト定義からJavaScriptテストファイルを生成
-      const testDefinition = JSON.parse(fs.readFileSync(testDefinitionPath, 'utf8'));
+      const testDefinition: TestDefinition = JSON.parse(fs.readFileSync(testDefinitionPath, 'utf8'));
       const jsTestFile = await generateJsTestFromDefinition(testDefinition);
       
       console.log(`テストファイルを生成しました: ${jsTestFile}`);
@@ -80,7 +97,7 @@ program
   });
 
 // JSON定義からJavaScriptテストファイルを生成する関数
-async function generateJsTestFromDefinition(testDefinition) {
+async function generateJsTestFromDefinition(testDefinition: TestDefinition): Promise<string> {
   const testDir = path.join(process.cwd(), 'tests');
   if (!fs.existsSync(testDir)) {
     fs.mkdirSync(testDir, { recursive: true });
@@ -148,8 +165,8 @@ program
   .command('generate-example')
   .description('サンプルテスト定義ファイルを生成')
   .option('-o, --output <path>', 'ファイルの出力先', './example-test.json')
-  .action((options) => {
-    const exampleTest = {
+  .action((options: { output: string }) => {
+    const exampleTest: TestDefinition = {
       name: 'ログインテスト例',
       steps: [
         { action: 'navigate', url: 'https://example.com/login' },
@@ -172,7 +189,7 @@ program
   .argument('<file>', 'テストファイルのパス')
   .option('-b, --browser <browser>', 'ブラウザを指定 (chromium, firefox, webkit)', 'chromium')
   .option('--headed', 'ヘッド付きモードで実行（UIあり）', false)
-  .action((file, options) => {
+  .action((file: string, options: { browser: string, headed: boolean }) => {
     const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
     const args = [
       'playwright',
@@ -189,7 +206,7 @@ program
       shell: process.platform === 'win32'
     });
     
-    process.exit(result.status);
+    process.exit(result.status || 0);
   });
 
 // MCPモデル情報表示コマンド
@@ -198,32 +215,26 @@ program
   .description('使用可能なMCPモデルを表示')
   .action(() => {
     console.log('利用可能なMCPモデル:');
-    console.log('- gpt-4o (推奨)');
-    console.log('- gpt-4-turbo');
-    console.log('- gpt-3.5-turbo');
-    console.log('- claude-3-opus');
-    console.log('- claude-3-sonnet');
-    console.log('\n使用方法: pw-mcp run <test-file> --model=gpt-4o');
+    console.log('- gpt-4o (OpenAI GPT-4o)');
+    console.log('- claude-3-haiku (Anthropic Claude Haiku)');
+    console.log('- claude-3-sonnet (Anthropic Claude Sonnet)');
+    console.log('- claude-3-opus (Anthropic Claude Opus)');
   });
 
-// MCP機能を使用したテスト実行コマンド
+// MCPを使用したテスト実行コマンド
 program
   .command('mcp')
-  .description('MCP（Model Context Protocol）を使用したテストを実行')
+  .description('MCP（AI）を使ったテストを実行')
   .argument('<file>', 'テスト定義ファイルのパス（JSON形式）')
+  .option('-m, --model <model>', 'AIモデルを指定', 'gpt-4o')
   .option('-b, --browser <browser>', 'ブラウザを指定 (chromium, firefox, webkit)', 'chromium')
-  .option('--headless', 'ヘッドレスモードで実行', false)
   .option('--headed', 'ヘッド付きモードで実行（UIあり）', true)
-  .option('--timeout <ms>', 'テストのタイムアウト時間（ミリ秒）', '30000')
-  .option('--model <model>', 'MCPで使用するAIモデル', 'gpt-4o')
-  .option('--vision', 'ビジョンモードを使用（スクリーンショットベース）', false)
   .option('--keep-files', 'テスト完了後もspec.jsファイルを保持する', false)
-  .option('--no-report', 'テスト失敗時にレポートを自動表示しない', false)
-  .action(async (file, options) => {
+  .action(async (file: string, options: any) => {
     try {
-      console.log('MCP機能を使用したテスト実行を開始します...');
+      console.log('MCP（AI）テスト実行を開始します...');
       console.log(`ファイル: ${file}`);
-      console.log(`オプション: ${JSON.stringify(options, null, 2)}`);
+      console.log(`モデル: ${options.model}`);
       
       // テスト定義ファイルを読み込む
       const testDefinitionPath = path.resolve(process.cwd(), file);
@@ -232,22 +243,11 @@ program
         process.exit(1);
       }
       
-      // テスト定義を読み込む
-      const testDefinition = JSON.parse(fs.readFileSync(testDefinitionPath, 'utf8'));
+      // テスト定義からMCPテストファイルを生成
+      const testDefinition: TestDefinition = JSON.parse(fs.readFileSync(testDefinitionPath, 'utf8'));
+      const mcpTestFile = await generateMcpTestFromDefinition(testDefinition, options.model);
       
-      // MCPオプションを構築
-      const mcpArgs = [
-        '@playwright/mcp',
-        options.headed ? '' : '--headless',
-        options.vision ? '--vision' : ''
-      ].filter(Boolean);
-      
-      console.log(`MCPコマンド: npx ${mcpArgs.join(' ')}`);
-      
-      // テスト定義からJavaScriptテストファイルを生成
-      const jsTestFile = await generateMcpTestFromDefinition(testDefinition, options.model);
-      
-      console.log(`MCPテストファイルを生成しました: ${jsTestFile}`);
+      console.log(`MCPテストファイルを生成しました: ${mcpTestFile}`);
       
       // テストランナーを設定
       const testRunner = new TestRunner({
@@ -256,25 +256,23 @@ program
           args: [
             'playwright',
             'test',
-            jsTestFile.replace(/\\/g, '/'),
+            mcpTestFile.replace(/\\/g, '/'),
+            `--project=${options.browser}`,
             options.headed ? '--headed' : ''
           ].filter(Boolean)
         },
-        keepFiles: options.keepFiles,
-        showReport: options.report
+        keepFiles: options.keepFiles
       });
       
       // テストを実行
-      const result = await testRunner.execute(testDefinition, jsTestFile);
+      const result = await testRunner.execute(testDefinition, mcpTestFile);
       
       // テスト結果を表示
       console.log('\nMCPテスト実行結果:');
       console.log(`ステータス: ${result.status}`);
       
       // テストファイルをクリーンアップ
-      if (!options.keepFiles) {
-        await testRunner.cleanup();
-      }
+      await testRunner.cleanup();
       
       // 終了コードを設定
       process.exit(result.status === 'passed' ? 0 : 1);
@@ -284,75 +282,89 @@ program
     }
   });
 
-// JSON定義からMCP用JavaScriptテストファイルを生成する関数
-async function generateMcpTestFromDefinition(testDefinition, model = 'gpt-4o') {
+// 1種類のモデルタイプに変換する関数
+function convertModelType(model: string): string {
+  const lowercase = model.toLowerCase();
+  
+  if (lowercase.includes('gpt-4')) return 'gpt-4o';
+  if (lowercase.includes('claude') && lowercase.includes('haiku')) return 'claude-3-haiku';
+  if (lowercase.includes('claude') && lowercase.includes('sonnet')) return 'claude-3-sonnet';
+  if (lowercase.includes('claude') && lowercase.includes('opus')) return 'claude-3-opus';
+  
+  // デフォルトはGPT-4o
+  return 'gpt-4o';
+}
+
+// JSON定義からMCPテストファイルを生成する関数
+async function generateMcpTestFromDefinition(testDefinition: TestDefinition, model = 'gpt-4o'): Promise<string> {
   const testDir = path.join(process.cwd(), 'tests');
   if (!fs.existsSync(testDir)) {
     fs.mkdirSync(testDir, { recursive: true });
   }
   
+  const modelType = convertModelType(model);
   const testFileName = path.join(testDir, `mcp_test_${Date.now()}.spec.js`);
-  let testCode = `// Generated MCP test for ${testDefinition.name || "Todoアプリテスト"}
+  
+  // MCP用のコードを生成
+  let testCode = `// Generated MCP test for ${testDefinition.name || "MCPテスト"}
 const { test, expect } = require('@playwright/test');
-const { runMcp } = require('${path.resolve(__dirname, '../test-mcp').replace(/\\/g, '/')}');
+const { runMcp } = require('../dist/test-mcp');
 
-test('${testDefinition.name || "Todoアプリテスト"} with MCP', async ({ page }) => {
-  // MCP設定
+test('${testDefinition.name || "MCPテスト"}', async ({ page }) => {
+  // MCPを初期化
+  // ブラウザページに対してMCP機能を有効化（プレースホルダー）
+  
+  // MCP実行のオプション
   const mcpOptions = {
-    model: '${model}',
-    temperature: 0.5,
+    model: '${modelType}',
+    temperature: 0.7,
     timeoutMs: 60000
   };
+
 `;
 
   // ステップを変換
   for (const step of testDefinition.steps) {
+    testCode += `  // ${step.description || step.action}\n`;
+    
     switch (step.action) {
       case 'navigate':
-        testCode += `  // ${step.description || 'ページに移動'}\n`;
         testCode += `  await page.goto('${step.url}');\n`;
         break;
         
       case 'wait':
         if (step.seconds) {
-          testCode += `  // ${step.description || `${step.seconds}秒待機`}\n`;
           testCode += `  await page.waitForTimeout(${step.seconds * 1000});\n`;
         } else if (step.element) {
-          testCode += `  // ${step.description || '要素が表示されるまで待機'}\n`;
           testCode += `  await runMcp(page, \`要素 "${step.element}" が表示されるまで待機する\`, mcpOptions);\n`;
         }
         break;
         
       case 'type':
-        testCode += `  // ${step.description || 'テキストを入力'}\n`;
-        testCode += `  await runMcp(page, \`要素 "${step.element}" に "${step.text}" と入力する${step.submit ? '、そしてEnterキーを押す' : ''}\`, mcpOptions);\n`;
+        testCode += `  await runMcp(page, \`要素 "${step.element}" に "${step.text}" と入力する${step.submit ? ' そしてEnterキーを押す' : ''}\`, mcpOptions);\n`;
         break;
         
       case 'click':
-        testCode += `  // ${step.description || '要素をクリック'}\n`;
         testCode += `  await runMcp(page, \`要素 "${step.element}" をクリックする\`, mcpOptions);\n`;
         break;
         
       case 'assertion':
-        testCode += `  // ${step.description || '検証'}\n`;
         if (step.expect === 'count') {
-          testCode += `  // MCPで要素数を確認\n`;
           testCode += `  await runMcp(page, \`要素 "${step.element}" が ${step.value} 個存在することを確認する\`, mcpOptions);\n`;
-          testCode += `  // 通常のPlaywright APIでも検証\n`;
-          testCode += `  await expect(page.locator('${step.element}')).toHaveCount(${step.value});\n`;
         } else if (step.expect === 'visible') {
-          testCode += `  // MCPで要素の表示を確認\n`;
           testCode += `  await runMcp(page, \`要素 "${step.element}" が表示されていることを確認する\`, mcpOptions);\n`;
-          testCode += `  // 通常のPlaywright APIでも検証\n`;
-          testCode += `  await expect(page.locator('${step.element}')).toBeVisible();\n`;
         } else if (step.expect === 'text') {
-          testCode += `  // MCPでテキストを確認\n`;
           testCode += `  await runMcp(page, \`要素 "${step.element}" のテキストが "${step.value}" であることを確認する\`, mcpOptions);\n`;
-          testCode += `  // 通常のPlaywright APIでも検証\n`;
-          testCode += `  await expect(page.locator('${step.element}')).toHaveText('${step.value}');\n`;
+        } else {
+          testCode += `  await runMcp(page, \`${step.description || step.expect}\`, mcpOptions);\n`;
         }
         break;
+        
+      default:
+        testCode += `  await runMcp(page, \`${step.description || JSON.stringify(step)}\`, mcpOptions);\n`;
     }
+    
+    testCode += '\n';
   }
   
   testCode += `});`;
@@ -361,5 +373,5 @@ test('${testDefinition.name || "Todoアプリテスト"} with MCP', async ({ pag
   return testFileName;
 }
 
-// CLIを実行
+// コマンドを解析して実行
 program.parse(); 

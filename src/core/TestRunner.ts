@@ -1,21 +1,54 @@
-const { spawn } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import { spawn } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+
+interface McpConfig {
+  command: string;
+  args: string[];
+}
+
+interface TestRunnerOptions {
+  mcpConfig?: McpConfig;
+  keepFiles?: boolean;
+  showReport?: boolean;
+}
+
+interface TestResult {
+  name: string;
+  status: 'passed' | 'failed' | 'error';
+  output?: string;
+  error?: string;
+}
+
+interface TestConfig {
+  browser?: string;
+}
+
+interface Test {
+  name: string;
+  config?: TestConfig;
+}
+
+interface TestExecutionResult {
+  exitCode: number;
+  output: string;
+}
 
 /**
  * テスト実行を管理するコアクラス
  */
 class TestRunner {
+  private mcpConfig: McpConfig;
+  private keepFiles: boolean;
+  private showReport: boolean;
+  private testResults: TestResult[];
+  private testFiles: string[];
+
   /**
    * TestRunnerを初期化
-   * @param {Object} options - 設定オプション
-   * @param {Object} options.mcpConfig - Playwright MCP設定
-   * @param {string} options.mcpConfig.command - 実行コマンド (npx等)
-   * @param {string[]} options.mcpConfig.args - コマンド引数
-   * @param {boolean} options.keepFiles - テスト完了後もspec.jsファイルを保持するかどうか
-   * @param {boolean} options.showReport - テスト失敗時にレポートを自動表示するかどうか
+   * @param options - 設定オプション
    */
-  constructor(options = {}) {
+  constructor(options: TestRunnerOptions = {}) {
     this.mcpConfig = options.mcpConfig || {
       command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
       args: ['playwright', 'test']
@@ -28,11 +61,11 @@ class TestRunner {
 
   /**
    * テストを実行
-   * @param {Object} test - テスト定義
-   * @param {string} testFile - 生成されたテストファイルパス
-   * @returns {Promise<Object>} テスト結果
+   * @param test - テスト定義
+   * @param testFile - 生成されたテストファイルパス
+   * @returns テスト結果
    */
-  async execute(test, testFile) {
+  async execute(test: Test, testFile?: string): Promise<TestResult> {
     console.log(`テスト「${test.name}」を実行中...`);
     
     if (testFile) {
@@ -78,8 +111,8 @@ class TestRunner {
           { stdio: 'inherit', shell: process.platform === 'win32' }
         );
         
-        await new Promise((resolve) => {
-          reportProcess.on('close', resolve);
+        await new Promise<void>((resolve) => {
+          reportProcess.on('close', () => resolve());
         });
       }
       
@@ -92,7 +125,7 @@ class TestRunner {
       
       console.log(`テスト「${test.name}」が完了しました`);
       return this.testResults[this.testResults.length - 1];
-    } catch (error) {
+    } catch (error: any) {
       console.error(`テスト「${test.name}」の実行中にエラーが発生しました:`, error);
       this.testResults.push({
         name: test.name,
@@ -105,11 +138,11 @@ class TestRunner {
 
   /**
    * Playwrightテストを実行
-   * @param {string[]} args - 追加コマンド引数
-   * @returns {Promise<{exitCode: number, output: string}>} 実行結果
+   * @param args - 追加コマンド引数
+   * @returns 実行結果
    * @private
    */
-  _runPlaywrightTest(args = []) {
+  private _runPlaywrightTest(args: string[] = []): Promise<TestExecutionResult> {
     return new Promise((resolve, reject) => {
       const { command, args: baseArgs } = this.mcpConfig;
       const mergedArgs = [...baseArgs, ...args];
@@ -122,20 +155,20 @@ class TestRunner {
       
       let outputData = '';
       
-      testProcess.stdout.on('data', (data) => {
+      testProcess.stdout?.on('data', (data) => {
         const output = data.toString();
         outputData += output;
         console.log(output);
       });
       
-      testProcess.stderr.on('data', (data) => {
+      testProcess.stderr?.on('data', (data) => {
         const output = data.toString();
         outputData += output;
         console.error(output);
       });
       
       testProcess.on('close', (exitCode) => {
-        resolve({ exitCode, output: outputData });
+        resolve({ exitCode: exitCode || 0, output: outputData });
       });
       
       testProcess.on('error', (error) => {
@@ -146,7 +179,7 @@ class TestRunner {
 
   /**
    * テスト結果のサマリーを取得
-   * @returns {Object} 結果サマリー
+   * @returns 結果サマリー
    */
   getResultsSummary() {
     const total = this.testResults.length;
@@ -165,9 +198,9 @@ class TestRunner {
   
   /**
    * 生成されたテストファイルをクリーンアップ
-   * @returns {Promise<void>}
+   * @returns void
    */
-  async cleanup() {
+  async cleanup(): Promise<void> {
     if (this.keepFiles) {
       console.log('テストファイルを保持します');
       return;
@@ -184,4 +217,4 @@ class TestRunner {
   }
 }
 
-module.exports = TestRunner; 
+export default TestRunner; 

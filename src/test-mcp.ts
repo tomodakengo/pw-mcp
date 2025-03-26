@@ -1,11 +1,26 @@
+import { Page } from '@playwright/test';
+
+interface McpOptions {
+  model?: string;
+  temperature?: number;
+  timeoutMs?: number;
+  [key: string]: any;
+}
+
+interface McpPage extends Page {
+  mcp?: {
+    run: (task: string, options: McpOptions) => Promise<string>;
+  };
+}
+
 /**
  * Playwright MCPを使用するためのヘルパー関数
- * @param {Object} page - Playwrightのページオブジェクト
- * @param {string} task - MCPに実行させるタスク
- * @param {Object} options - MCPのオプション
- * @returns {Promise<string>} - MCPの実行結果
+ * @param page - Playwrightのページオブジェクト
+ * @param task - MCPに実行させるタスク
+ * @param options - MCPのオプション
+ * @returns - MCPの実行結果
  */
-async function runMcp(page, task, options = {}) {
+export async function runMcp(page: McpPage, task: string, options: McpOptions = {}): Promise<string> {
   try {
     // MCPが利用可能か確認
     if (!page.mcp) {
@@ -15,7 +30,7 @@ async function runMcp(page, task, options = {}) {
     }
     
     // デフォルトオプション
-    const defaultOptions = {
+    const defaultOptions: McpOptions = {
       model: 'gpt-4o',
       temperature: 0.7,
       timeoutMs: 60000
@@ -48,11 +63,11 @@ async function runMcp(page, task, options = {}) {
 
 /**
  * ネイティブなPlaywright操作を使用してタスクを実行するフォールバック関数
- * @param {Object} page - Playwrightのページオブジェクト
- * @param {string} task - 実行するタスクの説明
- * @returns {Promise<string>} - 操作結果
+ * @param page - Playwrightのページオブジェクト
+ * @param task - 実行するタスクの説明
+ * @returns - 操作結果
  */
-async function executeNativeAction(page, task) {
+async function executeNativeAction(page: Page, task: string): Promise<string> {
   console.log(`ネイティブアクションにフォールバック: ${task}`);
   
   try {
@@ -121,7 +136,7 @@ async function executeNativeAction(page, task) {
         const expectedText = elementMatch[2];
         
         const actualText = await page.locator(selector).textContent();
-        if (actualText.includes(expectedText)) {
+        if (actualText && actualText.includes(expectedText)) {
           return `要素 "${selector}" のテキストが "${expectedText}" であることを確認しました`;
         } else {
           return `要素 "${selector}" のテキストは "${actualText}" です (期待値: "${expectedText}")`;
@@ -131,19 +146,26 @@ async function executeNativeAction(page, task) {
     
     // 未対応のタスク
     return `タスク「${task}」はネイティブアクションではサポートされていません`;
-  } catch (error) {
+  } catch (error: any) {
     console.error('ネイティブアクション実行中にエラーが発生しました:', error);
     return `ネイティブアクションでエラーが発生しました: ${error.message}`;
   }
 }
 
+interface SnapshotElement {
+  name?: string;
+  role?: string;
+  children?: SnapshotElement[];
+  [key: string]: any;
+}
+
 /**
  * スナップショット内の要素を検索するヘルパー関数
- * @param {Array} elements - スナップショット内の要素配列
- * @param {string} taskDescription - タスクの説明
- * @returns {Object|null} - 見つかった要素または null
+ * @param elements - スナップショット内の要素配列
+ * @param taskDescription - タスクの説明
+ * @returns - 見つかった要素または null
  */
-function findElementInSnapshot(elements, taskDescription) {
+function findElementInSnapshot(elements: SnapshotElement[] | undefined, taskDescription: string): SnapshotElement | null {
   if (!elements || elements.length === 0) return null;
   
   const keywords = taskDescription.toLowerCase().split(' ');
@@ -165,8 +187,4 @@ function findElementInSnapshot(elements, taskDescription) {
   }
   
   return null;
-}
-
-module.exports = {
-  runMcp
-}; 
+} 

@@ -3,10 +3,11 @@
  * メインエントリポイント
  */
 
-const TestRunner = require('./core/TestRunner');
+import TestRunner from './core/TestRunner';
+import * as testMcp from './test-mcp';
 
 // テストMCP関連の処理をエクスポート
-module.exports = {
-  testMcp: require('./test-mcp.js'),
+export {
+  testMcp,
   TestRunner
 }; 
